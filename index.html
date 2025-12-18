@@ -1,127 +1,210 @@
+네, 지금까지 작업한 모든 핵심 기능(실시간 구글 시트 연동, 날짜 정렬, 플랫폼 필터링, URL 원문 표시, 그리고 마우스 드래그 너비 조절)을 하나로 완벽하게 통합했습니다.
+
+이 코드를 **GitHub의 index.html**에 통째로 덮어쓰기 하시면 됩니다.
+
+🛠️ 통합 대시보드 최종 코드
+HTML
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>엑셀 데이터 실시간 조회</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>통합 데이터 관리 시스템</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; line-height: 1.6; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .search-box { margin-bottom: 20px; display: flex; gap: 10px; }
-        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #f8f9fa; }
-        tr:hover { background-color: #f1f1f1; }
-        .status { margin-bottom: 10px; color: #666; font-size: 0.9em; }
+        /* 기본 스타일 및 레이아웃 */
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f4f7f9; color: #333; }
+        .container { max-width: 100%; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h1 { text-align: center; margin-bottom: 25px; color: #2c3e50; }
+
+        /* 상단 컨트롤 패널 */
+        .control-panel { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; background: #fff; padding: 15px; border: 1px solid #e1e4e8; border-radius: 8px; gap: 15px; }
+        .search-group { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+        input[type="text"] { padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        select { padding: 9px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; }
+        button { padding: 10px 20px; background: #5c6bc0; color: white; border: none; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #3f51b5; }
+
+        /* 테이블 레이아웃 및 드래그 관련 */
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1px solid #dee2e6; background: #fff; }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; position: relative; overflow: hidden; text-overflow: ellipsis; }
+        th { background-color: #f8f9fa; font-weight: bold; user-select: none; }
+        
+        /* 컬럼 너비 조절 핸들(Resizer) */
+        .resizer {
+            position: absolute; right: 0; top: 0; width: 6px; height: 100%;
+            cursor: col-resize; z-index: 10;
+        }
+        .resizer:hover { background-color: #5c6bc0; }
+
+        /* 특수 컬럼 스타일 */
+        .sort-icon { cursor: pointer; color: #5c6bc0; margin-left: 5px; font-size: 12px; }
+        .url-cell { font-size: 13px; word-break: break-all; white-space: normal; line-height: 1.4; }
+        .url-cell a { color: #1a73e8; text-decoration: none; }
+        .url-cell a:hover { text-decoration: underline; }
+        tr:hover { background-color: #f1f3f9; }
+        #status { font-size: 13px; color: #666; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>📋 데이터 데이터베이스 조회</h1>
-    
-    <div class="search-box">
-        <input type="text" id="searchInput" placeholder="검색어를 입력하세요 (플랫폼, 특이사항 등)">
-        <button id="searchButton">검색하기</button>
-    </div>
-    
-    <div id="status" class="status">데이터를 불러오는 중...</div>
+    <h1>📋 데이터 데이터베이스 통합 조회</h1>
 
-    <table>
-        <thead>
-            <tr>
-                <th>전달날짜</th>
-                <th>플랫폼</th>
-                <th>URL</th>
-                <th>검토완료</th>
-                <th>특이사항</th>
-                <th>비고</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody">
-            </tbody>
-    </table>
+    <div class="control-panel">
+        <div class="search-group">
+            <label for="searchInput">통합 검색</label>
+            <input type="text" id="searchInput" placeholder="검색어를 입력하세요...">
+        </div>
+        <div class="search-group" style="max-width: 200px;">
+            <label for="platformFilter">플랫폼 필터</label>
+            <select id="platformFilter" onchange="applyFilters()">
+                <option value="">전체 보기</option>
+            </select>
+        </div>
+        <button onclick="resetAll()">필터 초기화</button>
+        <div id="status">연결 중...</div>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="mainTable">
+            <thead>
+                <tr>
+                    <th style="width: 140px;">전달날짜 <span class="sort-icon" onclick="toggleSort()">↕ 정렬</span><div class="resizer"></div></th>
+                    <th style="width: 120px;">플랫폼<div class="resizer"></div></th>
+                    <th style="width: 350px;">URL (원문)<div class="resizer"></div></th>
+                    <th style="width: 100px;">검토완료<div class="resizer"></div></th>
+                    <th style="width: 200px;">특이사항<div class="resizer"></div></th>
+                    <th style="width: 150px;">비고<div class="resizer"></div></th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
 </div>
 
 <script>
-    // 1. 본인의 구글 시트 CSV 주소
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTIepAzwHme1ArBFfogzbBZiqqx0Fmz-8qpt3teRp3kLWhp3m8Frdj5-UgYy0fwtqoebtFmfIcZAfs2/pub?gid=0&single=true&output=csv';
     
     let allData = [];
+    let isAsc = true;
 
-    // 2. 데이터 불러오기 함수
-    async function fetchSheetData() {
-        const statusDiv = document.getElementById('status');
+    // 데이터 불러오기
+    async function loadData() {
+        const status = document.getElementById('status');
         try {
             const response = await fetch(CSV_URL);
-            if (!response.ok) throw new Error('네트워크 응답 오류');
-            const data = await response.text();
+            const text = await response.text();
+            allData = parseCSV(text);
             
-            allData = parseCSV(data);
-            renderTable(allData); // 여기서 함수 호출
-            statusDiv.innerText = `총 ${allData.length}개의 데이터를 로드했습니다.`;
-        } catch (error) {
-            console.error('로드 실패:', error);
-            statusDiv.innerText = '❌ 데이터를 불러오지 못했습니다. 게시 설정을 확인하세요.';
+            updatePlatformDropdown();
+            renderTable(allData);
+            initResizers(); // 드래그 기능 활성화
+            status.innerText = `총 ${allData.length}건 로드 완료`;
+        } catch (e) {
+            status.innerText = "❌ 데이터 로드 실패";
         }
     }
 
-    // 3. CSV 파싱 함수
-    function parseCSV(csvText) {
-        const lines = csvText.trim().split(/\r?\n/);
+    // CSV 파싱
+    function parseCSV(text) {
+        const lines = text.split(/\r?\n/);
         const headers = lines[0].split(',').map(h => h.trim());
-        return lines.slice(1).map(line => {
+        return lines.slice(1).filter(l => l.trim()).map(line => {
             const values = line.split(',');
-            const obj = {};
-            headers.forEach((header, index) => {
-                obj[header] = values[index] ? values[index].trim() : '';
-            });
+            let obj = {};
+            headers.forEach((h, i) => obj[h] = values[i] ? values[i].trim() : "");
             return obj;
         });
     }
 
-    // 4. 테이블 그리기 함수 (중요: 이 부분이 빠져있어서 에러가 났던 것입니다)
-    function renderTable(dataArray) {
-        const tableBody = document.getElementById('tableBody');
-        tableBody.innerHTML = '';
-
-        if (dataArray.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">결과가 없습니다.</td></tr>';
-            return;
-        }
-
-        dataArray.forEach(item => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${item['전달날짜'] || ''}</td>
-                <td>${item['플랫폼'] || ''}</td>
-                <td><a href="${item['URL']}" target="_blank">${item['URL'] ? '링크' : ''}</a></td>
-                <td>${item['검토완료'] || ''}</td>
-                <td>${item['특이사항'] || ''}</td>
-                <td>${item['비고'] || ''}</td>
-            `;
-            tableBody.appendChild(row);
+    // 플랫폼 필터 목록 생성
+    function updatePlatformDropdown() {
+        const select = document.getElementById('platformFilter');
+        const platforms = [...new Set(allData.map(d => d['플랫폼']))].filter(p => p).sort();
+        platforms.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p; opt.innerText = p;
+            select.appendChild(opt);
         });
     }
 
-    // 5. 검색 기능
-    function filterData() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const filtered = allData.filter(row => 
-            Object.values(row).some(val => String(val).toLowerCase().includes(searchTerm))
-        );
+    // 날짜 정렬 기능 (1번 요청)
+    function toggleSort() {
+        isAsc = !isAsc;
+        allData.sort((a, b) => {
+            const d1 = new Date(a['전달날짜']);
+            const d2 = new Date(b['전달날짜']);
+            return isAsc ? d1 - d2 : d2 - d1;
+        });
+        applyFilters();
+    }
+
+    // 필터링 및 검색 통합 (1번 요청)
+    function applyFilters() {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+        const platform = document.getElementById('platformFilter').value;
+
+        const filtered = allData.filter(row => {
+            const matchSearch = Object.values(row).some(v => String(v).toLowerCase().includes(term));
+            const matchPlatform = !platform || row['플랫폼'] === platform;
+            return matchSearch && matchPlatform;
+        });
         renderTable(filtered);
     }
 
-    // 버튼 클릭 및 엔터키 이벤트 연결
-    document.getElementById('searchButton').addEventListener('click', filterData);
-    document.getElementById('searchInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') filterData();
-    });
+    // 테이블 렌더링 (3번 요청: URL 원문)
+    function renderTable(data) {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = data.map(row => `
+            <tr>
+                <td>${row['전달날짜']}</td>
+                <td>${row['플랫폼']}</td>
+                <td class="url-cell"><a href="${row['URL']}" target="_blank">${row['URL']}</a></td>
+                <td>${row['검토완료']}</td>
+                <td>${row['특이사항']}</td>
+                <td>${row['비고']}</td>
+            </tr>
+        `).join('');
+    }
 
-    // 실행
-    fetchSheetData();
+    // 컬럼 드래그 너비 조절 기능 (2번 요청)
+    function initResizers() {
+        const table = document.getElementById('mainTable');
+        const headerCols = table.querySelectorAll('th');
+        headerCols.forEach(col => {
+            const resizer = col.querySelector('.resizer');
+            if (!resizer) return;
+
+            resizer.addEventListener('mousedown', (e) => {
+                const startX = e.clientX;
+                const startWidth = col.offsetWidth;
+
+                const onMouseMove = (e) => {
+                    const width = startWidth + (e.clientX - startX);
+                    col.style.width = width + 'px';
+                };
+
+                const onMouseUp = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        });
+    }
+
+    function resetAll() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('platformFilter').value = '';
+        renderTable(allData);
+    }
+
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    loadData();
 </script>
 
 </body>
