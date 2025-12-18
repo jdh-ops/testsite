@@ -2,29 +2,33 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>엑셀 데이터 조회 시스템</title>
+    <title>엑셀 데이터 실시간 조회</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        .search-box { margin-bottom: 20px; }
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .search-box { margin-bottom: 20px; display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #f4f4f4; }
-        tr:hover { background-color: #f9f9f9; }
-        input { padding: 8px; width: 300px; }
-        button { padding: 8px 15px; cursor: pointer; }
+        th { background-color: #f8f9fa; }
+        tr:hover { background-color: #f1f1f1; }
+        .status { margin-bottom: 10px; color: #666; font-size: 0.9em; }
     </style>
 </head>
 <body>
 
-    <h1>📋 데이터 조회 시스템</h1>
-
+<div class="container">
+    <h1>📋 데이터 데이터베이스 조회</h1>
+    
     <div class="search-box">
         <input type="text" id="searchInput" placeholder="검색어를 입력하세요 (플랫폼, 특이사항 등)">
-        <button id="searchButton">검색</button>
+        <button id="searchButton">검색하기</button>
     </div>
+    
+    <div id="status" class="status">데이터를 불러오는 중...</div>
 
-    <table id="dataTable">
+    <table>
         <thead>
             <tr>
                 <th>전달날짜</th>
@@ -36,12 +40,89 @@
             </tr>
         </thead>
         <tbody id="tableBody">
-            <tr>
-                <td colspan="6" style="text-align:center;">데이터를 불러오는 중입니다...</td>
-            </tr>
-        </tbody>
+            </tbody>
     </table>
+</div>
 
-    <script src="script.js"></script>
+<script>
+    // 1. 본인의 구글 시트 CSV 주소
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTIepAzwHme1ArBFfogzbBZiqqx0Fmz-8qpt3teRp3kLWhp3m8Frdj5-UgYy0fwtqoebtFmfIcZAfs2/pub?gid=0&single=true&output=csv';
+    
+    let allData = [];
+
+    // 2. 데이터 불러오기 함수
+    async function fetchSheetData() {
+        const statusDiv = document.getElementById('status');
+        try {
+            const response = await fetch(CSV_URL);
+            if (!response.ok) throw new Error('네트워크 응답 오류');
+            const data = await response.text();
+            
+            allData = parseCSV(data);
+            renderTable(allData); // 여기서 함수 호출
+            statusDiv.innerText = `총 ${allData.length}개의 데이터를 로드했습니다.`;
+        } catch (error) {
+            console.error('로드 실패:', error);
+            statusDiv.innerText = '❌ 데이터를 불러오지 못했습니다. 게시 설정을 확인하세요.';
+        }
+    }
+
+    // 3. CSV 파싱 함수
+    function parseCSV(csvText) {
+        const lines = csvText.trim().split(/\r?\n/);
+        const headers = lines[0].split(',').map(h => h.trim());
+        return lines.slice(1).map(line => {
+            const values = line.split(',');
+            const obj = {};
+            headers.forEach((header, index) => {
+                obj[header] = values[index] ? values[index].trim() : '';
+            });
+            return obj;
+        });
+    }
+
+    // 4. 테이블 그리기 함수 (중요: 이 부분이 빠져있어서 에러가 났던 것입니다)
+    function renderTable(dataArray) {
+        const tableBody = document.getElementById('tableBody');
+        tableBody.innerHTML = '';
+
+        if (dataArray.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">결과가 없습니다.</td></tr>';
+            return;
+        }
+
+        dataArray.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item['전달날짜'] || ''}</td>
+                <td>${item['플랫폼'] || ''}</td>
+                <td><a href="${item['URL']}" target="_blank">${item['URL'] ? '링크' : ''}</a></td>
+                <td>${item['검토완료'] || ''}</td>
+                <td>${item['특이사항'] || ''}</td>
+                <td>${item['비고'] || ''}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+
+    // 5. 검색 기능
+    function filterData() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allData.filter(row => 
+            Object.values(row).some(val => String(val).toLowerCase().includes(searchTerm))
+        );
+        renderTable(filtered);
+    }
+
+    // 버튼 클릭 및 엔터키 이벤트 연결
+    document.getElementById('searchButton').addEventListener('click', filterData);
+    document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') filterData();
+    });
+
+    // 실행
+    fetchSheetData();
+</script>
+
 </body>
 </html>
