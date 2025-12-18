@@ -2,74 +2,70 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>통합 데이터 관리 시스템</title>
+    <title>고급 데이터 필터 시스템</title>
     <style>
-        /* 기본 스타일 및 레이아웃 */
-        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f4f7f9; color: #333; }
-        .container { max-width: 100%; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        h1 { text-align: center; margin-bottom: 25px; color: #2c3e50; }
-
-        /* 상단 컨트롤 패널 */
-        .control-panel { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; background: #fff; padding: 15px; border: 1px solid #e1e4e8; border-radius: 8px; gap: 15px; }
-        .search-group { flex: 1; display: flex; flex-direction: column; gap: 5px; }
-        input[type="text"] { padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
-        select { padding: 9px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; }
-        button { padding: 10px 20px; background: #5c6bc0; color: white; border: none; border-radius: 4px; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #3f51b5; }
-
-        /* 테이블 레이아웃 및 드래그 관련 */
-        .table-wrapper { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1px solid #dee2e6; background: #fff; }
-        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; position: relative; overflow: hidden; text-overflow: ellipsis; }
-        th { background-color: #f8f9fa; font-weight: bold; user-select: none; }
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f8f9fa; }
+        .container { max-width: 100%; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         
-        /* 컬럼 너비 조절 핸들(Resizer) */
-        .resizer {
-            position: absolute; right: 0; top: 0; width: 6px; height: 100%;
-            cursor: col-resize; z-index: 10;
-        }
-        .resizer:hover { background-color: #5c6bc0; }
+        /* 필터 섹션 스타일 */
+        .filter-section { background: #f1f3f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .filter-group { margin-bottom: 15px; }
+        .filter-title { font-weight: bold; margin-bottom: 8px; display: block; color: #495057; }
+        
+        /* 1. 그룹 버튼 스타일 */
+        .preset-buttons { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+        .btn-preset { padding: 6px 12px; background: #5c6bc0; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 13px; }
+        .btn-preset:hover { background: #3f51b5; }
 
-        /* 특수 컬럼 스타일 */
-        .sort-icon { cursor: pointer; color: #5c6bc0; margin-left: 5px; font-size: 12px; }
-        .url-cell { font-size: 13px; word-break: break-all; white-space: normal; line-height: 1.4; }
-        .url-cell a { color: #1a73e8; text-decoration: none; }
-        .url-cell a:hover { text-decoration: underline; }
+        /* 2. 다중 선택 체크박스 스타일 */
+        .checkbox-group { display: flex; gap: 15px; flex-wrap: wrap; padding: 10px; background: white; border-radius: 5px; border: 1px solid #dee2e6; }
+        .checkbox-item { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px; }
+
+        /* 테이블 관련 */
+        .table-wrapper { overflow-x: auto; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; position: relative; }
+        th { background: #e9ecef; }
+        .resizer { position: absolute; right: 0; top: 0; width: 5px; height: 100%; cursor: col-resize; }
+        .url-cell { word-break: break-all; font-size: 13px; }
         tr:hover { background-color: #f1f3f9; }
-        #status { font-size: 13px; color: #666; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>📋 데이터 데이터베이스 통합 조회</h1>
+    <h2>📊 데이터 멀티 필터 대시보드</h2>
 
-    <div class="control-panel">
-        <div class="search-group">
-            <label for="searchInput">통합 검색</label>
-            <input type="text" id="searchInput" placeholder="검색어를 입력하세요...">
+    <div class="filter-section">
+        <div class="filter-group">
+            <span class="filter-title">📌 빠른 그룹 선택</span>
+            <div class="preset-buttons">
+                <button class="btn-preset" onclick="selectPreset(['ebay', 'naver'])">포털 사이트</button>
+                <button class="btn-preset" onclick="resetCheckboxes()">전체 해제</button>
+            </div>
         </div>
-        <div class="search-group" style="max-width: 200px;">
-            <label for="platformFilter">플랫폼 필터</label>
-            <select id="platformFilter" onchange="applyFilters()">
-                <option value="">전체 보기</option>
-            </select>
+
+        <div class="filter-group">
+            <span class="filter-title">🔍 플랫폼 다중 선택 (중복 선택 가능)</span>
+            <div id="platformCheckboxes" class="checkbox-group">
+                </div>
         </div>
-        <button onclick="resetAll()">필터 초기화</button>
-        <div id="status">연결 중...</div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <input type="text" id="searchInput" placeholder="키워드 통합 검색..." style="padding:10px; width:300px; border-radius:5px; border:1px solid #ddd;">
+            <div id="status" style="font-weight:bold; color:#5c6bc0;">로드 중...</div>
+        </div>
     </div>
 
     <div class="table-wrapper">
         <table id="mainTable">
             <thead>
                 <tr>
-                    <th style="width: 140px;">전달날짜 <span class="sort-icon" onclick="toggleSort()">↕ 정렬</span><div class="resizer"></div></th>
-                    <th style="width: 120px;">플랫폼<div class="resizer"></div></th>
-                    <th style="width: 350px;">URL (원문)<div class="resizer"></div></th>
-                    <th style="width: 100px;">검토완료<div class="resizer"></div></th>
-                    <th style="width: 200px;">특이사항<div class="resizer"></div></th>
-                    <th style="width: 150px;">비고<div class="resizer"></div></th>
+                    <th style="width:140px;">전달날짜 <span onclick="toggleSort()" style="cursor:pointer; color:#5c6bc0;">↕</span><div class="resizer"></div></th>
+                    <th style="width:120px;">플랫폼<div class="resizer"></div></th>
+                    <th style="width:400px;">URL (원문)<div class="resizer"></div></th>
+                    <th style="width:100px;">검토완료<div class="resizer"></div></th>
+                    <th>특이사항<div class="resizer"></div></th>
                 </tr>
             </thead>
             <tbody id="tableBody"></tbody>
@@ -79,28 +75,21 @@
 
 <script>
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTIepAzwHme1ArBFfogzbBZiqqx0Fmz-8qpt3teRp3kLWhp3m8Frdj5-UgYy0fwtqoebtFmfIcZAfs2/pub?gid=0&single=true&output=csv';
-    
     let allData = [];
     let isAsc = true;
 
-    // 데이터 불러오기
-    async function loadData() {
-        const status = document.getElementById('status');
+    async function init() {
         try {
             const response = await fetch(CSV_URL);
             const text = await response.text();
             allData = parseCSV(text);
             
-            updatePlatformDropdown();
+            createPlatformCheckboxes();
             renderTable(allData);
-            initResizers(); // 드래그 기능 활성화
-            status.innerText = `총 ${allData.length}건 로드 완료`;
-        } catch (e) {
-            status.innerText = "❌ 데이터 로드 실패";
-        }
+            initResizers();
+        } catch (e) { document.getElementById('status').innerText = "로드 실패"; }
     }
 
-    // CSV 파싱
     function parseCSV(text) {
         const lines = text.split(/\r?\n/);
         const headers = lines[0].split(',').map(h => h.trim());
@@ -112,42 +101,50 @@
         });
     }
 
-    // 플랫폼 필터 목록 생성
-    function updatePlatformDropdown() {
-        const select = document.getElementById('platformFilter');
+    // 1. 체크박스 동적 생성
+    function createPlatformCheckboxes() {
+        const container = document.getElementById('platformCheckboxes');
         const platforms = [...new Set(allData.map(d => d['플랫폼']))].filter(p => p).sort();
-        platforms.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p; opt.innerText = p;
-            select.appendChild(opt);
-        });
+        
+        container.innerHTML = platforms.map(p => `
+            <label class="checkbox-item">
+                <input type="checkbox" name="platform" value="${p}" onchange="applyFilters()"> ${p}
+            </label>
+        `).join('');
     }
 
-    // 날짜 정렬 기능 (1번 요청)
-    function toggleSort() {
-        isAsc = !isAsc;
-        allData.sort((a, b) => {
-            const d1 = new Date(a['전달날짜']);
-            const d2 = new Date(b['전달날짜']);
-            return isAsc ? d1 - d2 : d2 - d1;
+    // 2. 그룹 프리셋 선택 기능
+    function selectPreset(platformArray) {
+        const checkboxes = document.querySelectorAll('input[name="platform"]');
+        checkboxes.forEach(cb => {
+            cb.checked = platformArray.includes(cb.value);
         });
         applyFilters();
     }
 
-    // 필터링 및 검색 통합 (1번 요청)
+    function resetCheckboxes() {
+        document.querySelectorAll('input[name="platform"]').forEach(cb => cb.checked = false);
+        applyFilters();
+    }
+
+    // 3. 통합 필터 로직 (체크박스 + 검색어)
     function applyFilters() {
-        const term = document.getElementById('searchInput').value.toLowerCase();
-        const platform = document.getElementById('platformFilter').value;
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        
+        // 체크된 플랫폼들 가져오기
+        const checkedPlatforms = Array.from(document.querySelectorAll('input[name="platform"]:checked'))
+                                      .map(cb => cb.value);
 
         const filtered = allData.filter(row => {
-            const matchSearch = Object.values(row).some(v => String(v).toLowerCase().includes(term));
-            const matchPlatform = !platform || row['플랫폼'] === platform;
+            const matchSearch = Object.values(row).some(v => String(v).toLowerCase().includes(searchTerm));
+            // 선택된 게 없으면 전체 보여주기, 있으면 포함 여부 확인
+            const matchPlatform = checkedPlatforms.length === 0 || checkedPlatforms.includes(row['플랫폼']);
             return matchSearch && matchPlatform;
         });
+
         renderTable(filtered);
     }
 
-    // 테이블 렌더링 (3번 요청: URL 원문)
     function renderTable(data) {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = data.map(row => `
@@ -157,49 +154,36 @@
                 <td class="url-cell"><a href="${row['URL']}" target="_blank">${row['URL']}</a></td>
                 <td>${row['검토완료']}</td>
                 <td>${row['특이사항']}</td>
-                <td>${row['비고']}</td>
             </tr>
         `).join('');
+        document.getElementById('status').innerText = `총 ${data.length}건`;
     }
 
-    // 컬럼 드래그 너비 조절 기능 (2번 요청)
+    // 정렬 및 리사이저 로직 (이전과 동일)
+    function toggleSort() {
+        isAsc = !isAsc;
+        allData.sort((a, b) => isAsc ? new Date(a['전달날짜']) - new Date(b['전달날짜']) : new Date(b['전달날짜']) - new Date(a['전달날짜']));
+        applyFilters();
+    }
+
     function initResizers() {
         const table = document.getElementById('mainTable');
-        const headerCols = table.querySelectorAll('th');
-        headerCols.forEach(col => {
+        table.querySelectorAll('th').forEach(col => {
             const resizer = col.querySelector('.resizer');
             if (!resizer) return;
-
             resizer.addEventListener('mousedown', (e) => {
-                const startX = e.clientX;
-                const startWidth = col.offsetWidth;
-
-                const onMouseMove = (e) => {
-                    const width = startWidth + (e.clientX - startX);
-                    col.style.width = width + 'px';
-                };
-
-                const onMouseUp = () => {
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
-                };
-
+                const startX = e.clientX; const startWidth = col.offsetWidth;
+                const onMouseMove = (e) => { col.style.width = (startWidth + e.clientX - startX) + 'px'; };
+                const onMouseUp = () => { document.removeEventListener('mousemove', onMouseMove); };
                 document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
+                document.addEventListener('mouseup', onMouseUp, {once:true});
             });
         });
     }
 
-    function resetAll() {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('platformFilter').value = '';
-        renderTable(allData);
-    }
-
     document.getElementById('searchInput').addEventListener('input', applyFilters);
-    loadData();
+    init();
 </script>
 
 </body>
 </html>
-
